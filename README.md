@@ -9,7 +9,7 @@ pip install pipenv
 3. cd to the project directory
 4. Create the virtual environment
 ```
-pipenv install
+pipenv install --skip-lock
 ```
 5. Activate the virtual environment
 ```
