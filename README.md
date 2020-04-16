@@ -1,6 +1,28 @@
 # Fair-regression
+
+## Project Setup
+1. Clone the repo
+2. Install pipenv
+```
+pip install pipenv
+```
+3. cd to the project directory
+4. Create the virtual environment
+```
+pipenv install
+```
+5. Activate the virtual environment
+```
+pipenv shell
+```
+
 ## COMPAS Dataset
 ### Preprocessing
 ```
 python3 -m src.preprocess_compas
 ```
+### Generating Accuracy vs Fairness
+```
+python3 -m src.frontier
+```
+The final plot will be saved inside output/
