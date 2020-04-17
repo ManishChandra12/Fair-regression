@@ -23,6 +23,6 @@ python3 -m src.preprocess_compas
 ```
 ### Generating Accuracy vs Fairness
 ```
-python3 -m src.frontier
+python3 -m src.frontier --dataset=compas
 ```
 The final plot will be saved inside output/
