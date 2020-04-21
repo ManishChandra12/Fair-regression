@@ -12,7 +12,6 @@ from CONSTANTS import PROCESSED_DATA_DIR, ROOT_DIR
 random.seed(10)
 np.random.seed(10)
 
-
 def main(X, y, idx1, idx2, dataset):
     w = cp.Variable((X.shape[1], 1))
     problem = cp.Problem(cp.Minimize(logloss(X, y, w)))
@@ -78,7 +77,8 @@ def main(X, y, idx1, idx2, dataset):
     _ = ax.bar(x + 3 * width, pof['hybridsep'], width, label='Hybrid, separate')
 
     ax.set_ylabel('Price of Fairness')
-    ax.set_title('alpha')
+    ax.set_xlabel('alpha')
+    ax.set_title(dataset.upper())
     ax.set_xticks(x)
     ax.set_xticklabels(alphas)
     ax.set_ylim([0, 3])
@@ -94,12 +94,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     data = X = y = idx1 = idx2 = None
-    if args.dataset == 'compas':
-        data = pd.read_csv(os.path.join(PROCESSED_DATA_DIR, 'COMPAS/compas_processed.csv'), index_col=None)
-        y = data[['is_violent_recid']].values
-        X = data.drop(['is_violent_recid', 'African-American', 'Caucasian'], axis=1).values
+    if args.dataset == 'lawschool':
+        data = pd.read_csv(os.path.join(PROCESSED_DATA_DIR, 'LAWSCHOOL/lawschool_processed.csv'), index_col=None)
+        y = data[['bar1']].values
+        X = data.drop(['bar1', 'female', 'male'], axis=1).values
         # indices denoting which row is from which protected group
-        idx1 = (data['African-American'] == 1).values
-        idx2 = (data['Caucasian'] == 1).values
+        idx1 = (data['female'] == 1).values
+        idx2 = (data['male'] == 1).values
+
     main(X, y, idx1, idx2, args.dataset)
 
