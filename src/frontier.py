@@ -16,7 +16,6 @@ from CONSTANTS import PROCESSED_DATA_DIR, ROOT_DIR
 np.random.seed(10)
 random.seed(10)
 
-
 def error(y_true, X, w):
     """
     Computes the MSE between the true and predicted class labels in single model setting
@@ -185,12 +184,15 @@ if __name__ == '__main__':
     proc = args.proc
 
     data = X = y = idx1 = idx2 = None
-    if args.dataset == 'compas':
-        data = pd.read_csv(os.path.join(PROCESSED_DATA_DIR, 'COMPAS/compas_processed.csv'), index_col=None)
-        y = data[['is_violent_recid']].values
-        X = data.drop(['is_violent_recid', 'African-American', 'Caucasian'], axis=1).values
+
+    print('args.dataset',args.dataset)
+
+    if args.dataset == 'lawschool':
+        data = pd.read_csv(os.path.join(PROCESSED_DATA_DIR, 'LAWSCHOOL/lawschool_processed.csv'), index_col=None)
+        y = data[['bar1']].values
+        X = data.drop(['bar1', 'female', 'male'], axis=1).values
         # indices denoting which row is from which protected group
-        idx1 = (data['African-American'] == 1).values
-        idx2 = (data['Caucasian'] == 1).values
+        idx1 = (data['female'] == 1).values
+        idx2 = (data['male'] == 1).values
 
     main(X, y, idx1, idx2, gamma_vals, lambda_vals, proc, args.dataset)
