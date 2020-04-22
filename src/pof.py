@@ -4,96 +4,116 @@ import argparse
 import os
 import cvxpy as cp
 import matplotlib.pyplot as plt
+from multiprocessing import Pool
+import itertools
 import random
 from src.loss import logloss, logloss_sep
 from src.fairness_penalty import fairness_penalty
-from CONSTANTS import PROCESSED_DATA_DIR, ROOT_DIR
+from CONSTANTS import PROCESSED_DATA_DIR, RAW_DATA_DIR, ROOT_DIR
 
 random.seed(10)
 np.random.seed(10)
 
 
-def main(X, y, idx1, idx2, dataset):
+def price(X, y, w, alpha, fp_wstar, fp, notion):
+    constraints = [fp[notion] <= (alpha * (fp_wstar[notion]).value)]
+    problem = cp.Problem(cp.Minimize(logloss(X, y, w)), constraints)
+    problem.solve(max_iters=500)
+    return problem.value
+
+
+def price_sep(X, y, idx1, idx2, w1, w2, alpha, fp_wstar, fp, notion):
+    constraints = [fp[notion] <= (alpha * (fp_wstar[notion]).value)]
+    problem = cp.Problem(cp.Minimize(logloss_sep(idx1, idx2, X, y, w1, w2)), constraints)
+    problem.solve(max_iters=500)
+    return problem.value
+
+
+def main(X, y, idx1, idx2, dataset, alphas):
     w = cp.Variable((X.shape[1], 1))
     problem = cp.Problem(cp.Minimize(logloss(X, y, w)))
-    problem.solve()
+    problem.solve(max_iters=500)
 
     lp_wstar = problem.value
-    fp_wstar = fairness_penalty(idx1, idx2, w, w, w, w, w, w, w, w, w, X, y, 1)
+    fp_wstar = fairness_penalty(idx1, idx2, w, w, w, w, w, w, w, w, w, X, y, 0)
 
     pof = {'individual': [], 'group': [], 'hybrid': [], 'individualsep': [], 'groupsep': [], 'hybridsep': []}
-    alphas = [0.5, 0.4, 0.3, 0.2, 0.1, 0.075, 0.05, 0.04, 0.03, 0.02, 0.01]
 
-    for alpha in alphas:
-        w1 = cp.Variable((X.shape[1], 1))
-        w2 = cp.Variable((X.shape[1], 1))
-        w3 = cp.Variable((X.shape[1], 1))
-        w1sep1 = cp.Variable((X.shape[1], 1))
-        w1sep2 = cp.Variable((X.shape[1], 1))
-        w2sep1 = cp.Variable((X.shape[1], 1))
-        w2sep2 = cp.Variable((X.shape[1], 1))
-        w3sep1 = cp.Variable((X.shape[1], 1))
-        w3sep2 = cp.Variable((X.shape[1], 1))
-        fp = fairness_penalty(idx1, idx2, w1, w2, w3, w1sep1, w1sep2, w2sep1, w2sep2, w3sep1, w3sep2, X, y, 0)
+    w1 = cp.Variable((X.shape[1], 1))
+    w2 = cp.Variable((X.shape[1], 1))
+    w3 = cp.Variable((X.shape[1], 1))
+    w1sep1 = cp.Variable((X.shape[1], 1))
+    w1sep2 = cp.Variable((X.shape[1], 1))
+    w2sep1 = cp.Variable((X.shape[1], 1))
+    w2sep2 = cp.Variable((X.shape[1], 1))
+    w3sep1 = cp.Variable((X.shape[1], 1))
+    w3sep2 = cp.Variable((X.shape[1], 1))
+    random.seed(10)
+    fp = fairness_penalty(idx1, idx2, w1, w2, w3, w1sep1, w1sep2, w2sep1, w2sep2, w3sep1, w3sep2, X, y, 0)
 
-        constraints = [fp['individual'] <= (alpha * (fp_wstar['individual']).value)]
-        problem = cp.Problem(cp.Minimize(logloss(X, y, w1)), constraints)
-        problem.solve()
-        pof['individual'].append(problem.value / lp_wstar)
+    pool = Pool(processes=proc)
+    print("Processing individual-single")
+    pof_values = pool.starmap(price, (itertools.product([X], [y], [w1], alphas, [fp_wstar], [fp], ['individual'])))
+    pool.close()
+    pool.join()
+    pof['individual'] = [x / lp_wstar for x in pof_values]
 
-        constraints = [fp['group'] <= (alpha * (fp_wstar['group']).value)]
-        problem = cp.Problem(cp.Minimize(logloss(X, y, w2)), constraints)
-        problem.solve()
-        pof['group'].append(problem.value / lp_wstar)
+    pool = Pool(processes=proc)
+    print("Processing group-single")
+    pof_values = pool.starmap(price, (itertools.product([X], [y], [w2], alphas, [fp_wstar], [fp], ['group'])))
+    pool.close()
+    pool.join()
+    pof['group'] = [x / lp_wstar for x in pof_values]
 
-        constraints = [fp['hybrid'] <= (alpha * (fp_wstar['hybrid']).value)]
-        problem = cp.Problem(cp.Minimize(logloss(X, y, w3)), constraints)
-        problem.solve()
-        pof['hybrid'].append(problem.value / lp_wstar)
+    pool = Pool(processes=proc)
+    print("Processing hybrid-single")
+    pof_values = pool.starmap(price, (itertools.product([X], [y], [w3], alphas, [fp_wstar], [fp], ['hybrid'])))
+    pool.close()
+    pool.join()
+    pof['hybrid'] = [x / lp_wstar for x in pof_values]
 
-        constraints = [fp['individualsep'] <= (alpha * (fp_wstar['individualsep']).value)]
-        problem = cp.Problem(cp.Minimize(logloss_sep(idx1, idx2, X, y, w1sep1, w1sep2)), constraints)
-        problem.solve()
-        pof['individualsep'].append(problem.value / lp_wstar)
+    pool = Pool(processes=proc)
+    print("Processing individual-separate")
+    pof_values = pool.starmap(price_sep, (itertools.product([X], [y], [idx1], [idx2], [w1sep1], [w1sep2], alphas, [fp_wstar], [fp], ['individualsep'])))
+    pool.close()
+    pool.join()
+    pof['individualsep'] = [x / lp_wstar for x in pof_values]
 
-        constraints = [fp['groupsep'] <= (alpha * (fp_wstar['groupsep']).value)]
-        problem = cp.Problem(cp.Minimize(logloss_sep(idx1, idx2, X, y, w2sep1, w2sep2)), constraints)
-        problem.solve()
-        pof['groupsep'].append(problem.value / lp_wstar)
+    pool = Pool(processes=proc)
+    print("Processing group-separate")
+    pof_values = pool.starmap(price_sep, (itertools.product([X], [y], [idx1], [idx2], [w2sep1], [w2sep2], alphas, [fp_wstar], [fp], ['groupsep'])))
+    pool.close()
+    pool.join()
+    pof['groupsep'] = [x / lp_wstar for x in pof_values]
 
-        constraints = [fp['hybridsep'] <= (alpha * (fp_wstar['hybridsep']).value)]
-        problem = cp.Problem(cp.Minimize(logloss_sep(idx1, idx2, X, y, w3sep1, w3sep2)), constraints)
-        problem.solve()
-        pof['hybridsep'].append(problem.value / lp_wstar)
+    pool = Pool(processes=proc)
+    print("Processing hybrid-separate")
+    pof_values = pool.starmap(price_sep, (itertools.product([X], [y], [idx1], [idx2], [w3sep1], [w3sep2], alphas, [fp_wstar], [fp], ['hybridsep'])))
+    pool.close()
+    pool.join()
+    pof['hybridsep'] = [x / lp_wstar for x in pof_values]
 
-    x = np.arange(len(alphas))  # the label locations
-    width = 0.1  # the width of the bars
-    fig, ax = plt.subplots()
+    print(pof)
 
-    _ = ax.bar(x - 2 * width, pof['individual'], width, label='Individual, single')
-    _ = ax.bar(x - width, pof['group'], width, label='Group, single')
-    _ = ax.bar(x, pof['hybrid'], width, label='Hybrid, single')
-    _ = ax.bar(x + width, pof['individualsep'], width, label='Individual, separate')
-    _ = ax.bar(x + 2 * width, pof['groupsep'], width, label='Group, separate')
-    _ = ax.bar(x + 3 * width, pof['hybridsep'], width, label='Hybrid, separate')
-
-    ax.set_ylabel('Price of Fairness')
-    ax.set_title('alpha')
-    ax.set_xticks(x)
-    ax.set_xticklabels(alphas)
-    ax.set_ylim([0, 3])
-    ax.legend()
-    fig.tight_layout()
-    # plt.show()
-    plt.savefig(os.path.join(ROOT_DIR, "output", dataset + "_pof.png"))
+    return pof
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, choices=['compas', 'adult', 'communities', 'default', 'lawschool'], required=True, help="dataset to use")
+    parser.add_argument("--proc", type=int, choices=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], default=7,
+                        help="number of processes to run in parallel (between 1 and 16)")
     args = parser.parse_args()
 
-    data = X = y = idx1 = idx2 = None
+    alphas = [0]
+    proc = args.proc
+
+    data = None
+    X = None
+    y = None
+    idx1 = None
+    idx2 = None
+    pof = dict()
     if args.dataset == 'compas':
         data = pd.read_csv(os.path.join(PROCESSED_DATA_DIR, 'COMPAS/compas_processed.csv'), index_col=None)
         y = data[['is_violent_recid']].values
@@ -101,5 +121,62 @@ if __name__ == '__main__':
         # indices denoting which row is from which protected group
         idx1 = (data['African-American'] == 1).values
         idx2 = (data['Caucasian'] == 1).values
-    main(X, y, idx1, idx2, args.dataset)
+        pof = main(X, y, idx1, idx2, args.dataset, alphas)
+    elif args.dataset == 'lawschool':
+        data = pd.read_csv(os.path.join(RAW_DATA_DIR, 'Law School/lawschool.csv'), index_col=None)
+        y = data[['bar1']].values
+        X = data.drop(['bar1', 'gender'], axis=1).values
+        # indices denoting which row is from which protected group
+        idx1 = (data['gender'] == 1).values
+        idx2 = (data['gender'] == 0).values
+        pof = main(X, y, idx1, idx2, args.dataset, alphas)
+    elif args.dataset == 'adult':
+        data = pd.read_csv(os.path.join(PROCESSED_DATA_DIR, 'Adult/adult_processed.csv'), index_col=None)
+        pof_temp = list()
+        for i in range(3):
+            print("Round " + str(i+1))
+            data_sampled = data.sample(frac=0.3)
+            y = data_sampled[['salary']].values
+            X = data_sampled.drop(['salary', 'sex_Female', 'sex_Male'], axis=1).values
+            # indices denoting which row is from which protected group
+            idx1 = (data_sampled['sex_Male'] == 1).values
+            idx2 = (data_sampled['sex_Female'] == 1).values
+            pof_temp.append(main(X, y, idx1, idx2, args.dataset, alphas))
+        for key in pof_temp[0].keys():
+            # pof[key] = (pof_temp[0][key] + pof_temp[1][key] + pof_temp[2][key]) / 3
+            pof[key] = [sum(x)/3 for x in zip(pof_temp[0][key], pof_temp[1][key], pof_temp[2][key])]
+    elif args.dataset == 'default':
+        data = pd.read_csv(os.path.join(PROCESSED_DATA_DIR, 'Default/default_processed.csv'), index_col=None)
+        pof_temp = list()
+        for i in range(3):
+            print("Round " + str(i + 1))
+            data_sampled = data.sample(frac=0.3)
+            y = data_sampled[['default payment next month']].values
+            X = data_sampled.drop(['default payment next month', 'SEX'], axis=1).values
+            # indices denoting which row is from which protected group
+            idx1 = (data_sampled['SEX'] == 1).values
+            idx2 = (data_sampled['SEX'] == 2).values
+            pof_temp.append(main(X, y, idx1, idx2, args.dataset, alphas))
+        for key in pof_temp[0].keys():
+            pof[key] = [sum(x) / 3 for x in zip(pof_temp[0][key], pof_temp[1][key], pof_temp[2][key])]
 
+    x = np.arange(len(alphas))  # the label locations
+    width = 0.1  # the width of the bars
+    fig, ax = plt.subplots()
+
+    _ = ax.bar(x - 2 * width, pof['groupsep'], width, label='Group, separate', color='b')
+    _ = ax.bar(x - width, pof['group'], width, label='Group, single', color='r')
+    _ = ax.bar(x, pof['hybridsep'], width, label='Hybrid, separate', color='m')
+    _ = ax.bar(x + width, pof['hybrid'], width, label='Hybrid, single', color='y')
+    _ = ax.bar(x + 2 * width, pof['individualsep'], width, label='Individual, separate', color='c')
+    _ = ax.bar(x + 3 * width, pof['individual'], width, label='Individual, single', color='g')
+
+    ax.set_ylabel('Price of Fairness')
+    ax.set_title('alpha')
+    ax.set_xticks(x)
+    ax.set_xticklabels(alphas)
+    ax.set_ylim([0.5, 3])
+    ax.legend(loc='upper left')
+    fig.tight_layout()
+    # plt.show()
+    plt.savefig(os.path.join(ROOT_DIR, "output", args.dataset + "_pof.png"))
