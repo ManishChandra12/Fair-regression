@@ -147,12 +147,12 @@ def main(X, y, idx1, idx2, gamma_vals, lambda_vals, proc, dataset):
         FPs['hybridsep'].append(FP[5] / 10)
 
         if lmd != 'inf':
-            print("Individual-single model: best_gamma={}, MSE={}, FP={}".format(gamma_individual, MSE[0] / 10, FP[0] / 10))
-            print("Group-single model: best_gamma={}, MSE={}, FP={}".format(gamma_group, MSE[1] / 10, FP[1] / 10))
-            print("Hybrid-single model: best_gamma={}, MSE={}, FP={}".format(gamma_hybrid, MSE[2] / 10, FP[2] / 10))
-            print("Individual-separate model: best_gamma={}, MSE={}, FP={}".format(gamma_individual, MSE[3] / 10, FP[3] / 10))
-            print("Group-separate model: best_gamma={}, MSE={}, FP={}".format(gamma_group, MSE[4] / 10, FP[4] / 10))
-            print("Hybrid-separate model: best_gamma={}, MSE={}, FP={}".format(gamma_hybrid, MSE[5] / 10, FP[5] / 10))
+            print("Individual-single model   : best_gamma={0:.10f}, MSE={1:.10f}, FP={2:.10f}".format(gamma_individual, MSE[0] / 10, FP[0] / 10))
+            print("Group-single model        : best_gamma={0:.10f}, MSE={1:.10f}, FP={2:.10f}".format(gamma_group, MSE[1] / 10, FP[1] / 10))
+            print("Hybrid-single model       : best_gamma={0:.10f}, MSE={1:.10f}, FP={2:.10f}".format(gamma_hybrid, MSE[2] / 10, FP[2] / 10))
+            print("Individual-separate model : best_gamma={0:.10f}, MSE={1:.10f}, FP={2:.10f}".format(gamma_individual, MSE[3] / 10, FP[3] / 10))
+            print("Group-separate model      : best_gamma={0:.10f}, MSE={1:.10f}, FP={2:.10f}".format(gamma_group, MSE[4] / 10, FP[4] / 10))
+            print("Hybrid-separate model     : best_gamma={0:.10f}, MSE={1:.10f}, FP={2:.10f}".format(gamma_hybrid, MSE[5] / 10, FP[5] / 10))
             print()
     plt.xlim(right=0.1)  # to replicate the result obtained by authors
     ind_sin, = plt.plot(FPs['individual'], MSEs['individual'], label='Individual, single')
