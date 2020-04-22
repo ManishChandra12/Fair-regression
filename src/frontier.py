@@ -11,7 +11,7 @@ from sklearn.model_selection import KFold
 import matplotlib.pyplot as plt
 from src.loss import logloss, logloss_sep, l2norm, get_loss
 from src.fairness_penalty import fairness_penalty
-from CONSTANTS import PROCESSED_DATA_DIR, ROOT_DIR
+from CONSTANTS import PROCESSED_DATA_DIR, RAW_DATA_DIR, ROOT_DIR
 
 np.random.seed(10)
 random.seed(10)
@@ -25,7 +25,8 @@ def error(y_true, X, w):
     :param w: learned weight vector
     :return: MSE between the true and predicted class labels
     """
-    y_pred = 1 / (1 + np.exp(-X @ w))
+    X = X.astype(float)
+    y_pred = 1 / (1.0 + np.exp(-X @ w))
     return mean_squared_error(y_true, y_pred)
 
 
@@ -40,7 +41,8 @@ def error_sep(indices1, indices2, y_true, X, w1, w2):
     :param w2: learned weight vector for group 2
     :return:
     """
-    y_pred = (indices1.reshape(indices1.shape[0], 1) * (1 / (1 + np.exp(-X @ w1)))) + (indices2.reshape(indices2.shape[0], 1) * (1 / (1 + np.exp(-X @ w2))))
+    X = X.astype(float)
+    y_pred = (indices1.reshape(indices1.shape[0], 1) * (1.0 / (1 + np.exp(-X @ w1)))) + (indices2.reshape(indices2.shape[0], 1) * (1 / (1.0 + np.exp(-X @ w2))))
     return mean_squared_error(y_true, y_pred)
 
 
@@ -58,6 +60,8 @@ def main(X, y, idx1, idx2, gamma_vals, lambda_vals, proc, dataset):
         gamma_individual = gamma_group = gamma_hybrid = gamma_individualsep = gamma_groupsep = gamma_hybridsep = None
         if lmd != 'inf':
             loss_values = pool.starmap(get_loss, (itertools.product([X], [y], [idx1], [idx2], gamma_vals, [lmd])))
+            pool.close()
+            pool.join()
 
             # choose the best gamma value for this lambda
             gamma_individual = gamma_vals[np.argmin([i[0] for i in loss_values], axis=0)]
@@ -154,19 +158,15 @@ def main(X, y, idx1, idx2, gamma_vals, lambda_vals, proc, dataset):
             print("Group-separate model: best_gamma={}, MSE={}, FP={}".format(gamma_group, MSE[4] / 10, FP[4] / 10))
             print("Hybrid-separate model: best_gamma={}, MSE={}, FP={}".format(gamma_hybrid, MSE[5] / 10, FP[5] / 10))
             print()
-    plt.xlim(right=0.1)  # to replicate the result obtained by authors
-    ind_sin, = plt.plot(FPs['individual'], MSEs['individual'], label='Individual, single')
-    grp_sin, = plt.plot(FPs['group'], MSEs['group'], label='Group, single')
-    hyb_sin, = plt.plot(FPs['hybrid'], MSEs['hybrid'], label='Hybrid, single')
-    ind_sep, = plt.plot(FPs['individualsep'], MSEs['individualsep'], label='Individual, separate')
-    grp_sep, = plt.plot(FPs['groupsep'], MSEs['groupsep'], label='Group, separate')
-    hyb_sep, = plt.plot(FPs['hybridsep'], MSEs['hybridsep'], label='Hybrid, separate')
-    plt.legend([ind_sin, grp_sin, hyb_sin, ind_sep, grp_sep, hyb_sep], ['Individual, single', 'Group, single', 'Hybrid, single', 'Individual, separate', 'Group, separate', 'Hybrid, separate'])
-    plt.xlabel('Fairness Loss')
-    plt.ylabel('MSE')
-    plt.title(dataset.upper())
-    # plt.show()
-    plt.savefig(os.path.join(ROOT_DIR, "output", dataset+".png"))
+        else:
+            print("Individual-single model: MSE={}, FP={}".format(MSE[0] / 10, FP[0] / 10))
+            print("Group-single model: MSE={}, FP={}".format(MSE[1] / 10, FP[1] / 10))
+            print("Hybrid-single model: MSE={}, FP={}".format(MSE[2] / 10, FP[2] / 10))
+            print("Individual-separate model: MSE={}, FP={}".format(MSE[3] / 10, FP[3] / 10))
+            print("Group-separate model: MSE={}, FP={}".format(MSE[4] / 10, FP[4] / 10))
+            print("Hybrid-separate model: MSE={}, FP={}".format(MSE[5] / 10, FP[5] / 10))
+            print()
+    return MSEs, FPs
 
 
 if __name__ == '__main__':
@@ -175,22 +175,104 @@ if __name__ == '__main__':
     parser.add_argument("--proc", type=int, choices=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], default=7, help="number of processes to run in parallel (between 1 and 16)")
     args = parser.parse_args()
 
-    # gamma values to try
-    trials = 7
-    gamma_vals = np.linspace(0.01, 1, trials)
-
-    # lambda values to feed
-    lambda_vals = [0, 0.1, 1, 50, 'inf']
-
     proc = args.proc
 
-    data = X = y = idx1 = idx2 = None
+    data = None
+    X = None
+    idx1 = None
+    idx2 = None
+    MSEs = dict()
+    FPs = dict()
     if args.dataset == 'compas':
+        # gamma values to try
+        trials = 7
+        gamma_vals = np.linspace(0.01, 1, trials)
+        # lambda values to feed
+        lambda_vals = [0, 0.1, 1, 50, 'inf']
         data = pd.read_csv(os.path.join(PROCESSED_DATA_DIR, 'COMPAS/compas_processed.csv'), index_col=None)
         y = data[['is_violent_recid']].values
         X = data.drop(['is_violent_recid', 'African-American', 'Caucasian'], axis=1).values
         # indices denoting which row is from which protected group
         idx1 = (data['African-American'] == 1).values
         idx2 = (data['Caucasian'] == 1).values
+        MSEs, FPs = main(X, y, idx1, idx2, gamma_vals, lambda_vals, proc, args.dataset)
+        plt.xlim(right=0.1)  # to replicate the result obtained by authors
+    elif args.dataset == 'lawschool':
+        # gamma values to try
+        trials = 7
+        gamma_vals = np.linspace(0.01, 1, trials)
+        # lambda values to feed
+        lambda_vals = [0, 0.1, 1, 50, 'inf']
+        data = pd.read_csv(os.path.join(RAW_DATA_DIR, 'Law School/lawschool.csv'), index_col=None)
+        y = data[['bar1']].values
+        X = data.drop(['bar1', 'gender'], axis=1).values
+        # indices denoting which row is from which protected group
+        idx1 = (data['gender'] == 1).values
+        idx2 = (data['gender'] == 0).values
+        MSEs, FPs = main(X, y, idx1, idx2, gamma_vals, lambda_vals, proc, args.dataset)
+        plt.xlim(right=0.1)  # to replicate the result obtained by authors
+    elif args.dataset == 'adult':
+        # gamma values to try
+        trials = 7
+        gamma_vals = np.linspace(0.001, 0.1, trials)
+        # lambda values to feed
+        lambda_vals = [0, 0.1, 1, 50, 'inf']
+        data = pd.read_csv(os.path.join(PROCESSED_DATA_DIR, 'Adult/adult_processed.csv'), index_col=None)
+        mse_temp = list()
+        fp_temp = list()
+        for i in range(3):
+            print("Round " + str(i+1))
+            data_sampled = data.sample(frac=0.3)
+            y = data_sampled[['salary']].values
+            X = data_sampled.drop(['salary', 'sex_Female', 'sex_Male'], axis=1).values
+            # indices denoting which row is from which protected group
+            idx1 = (data_sampled['sex_Male'] == 1).values
+            idx2 = (data_sampled['sex_Female'] == 1).values
+            m, f = main(X, y, idx1, idx2, gamma_vals, lambda_vals, proc, args.dataset)
+            mse_temp.append(m)
+            fp_temp.append(f)
+        for key in mse_temp[0].keys():
+            # pof[key] = (pof_temp[0][key] + pof_temp[1][key] + pof_temp[2][key]) / 3
+            MSEs[key] = [sum(x) / 3 for x in zip(mse_temp[0][key], mse_temp[1][key], mse_temp[2][key])]
+            FPs[key] = [sum(x) / 3 for x in zip(fp_temp[0][key], fp_temp[1][key], fp_temp[2][key])]
+        plt.xlim(right=0.2)  # to replicate the result obtained by authors
+    elif args.dataset == 'default':
+        # gamma values to try
+        trials = 7
+        gamma_vals = np.linspace(0.001, 0.1, trials)
+        # lambda values to feed
+        lambda_vals = [0, 0.1, 1, 50, 'inf']
+        data = pd.read_csv(os.path.join(PROCESSED_DATA_DIR, 'Default/default_processed.csv'), index_col=None)
+        mse_temp = list()
+        fp_temp = list()
+        for i in range(3):
+            print("Round " + str(i+1))
+            data_sampled = data.sample(frac=0.3)
+            y = data_sampled[['default payment next month']].values
+            X = data_sampled.drop(['default payment next month', 'SEX'], axis=1).values
+            # indices denoting which row is from which protected group
+            idx1 = (data_sampled['SEX'] == 1).values
+            idx2 = (data_sampled['SEX'] == 2).values
+            m, f = main(X, y, idx1, idx2, gamma_vals, lambda_vals, proc, args.dataset)
+            mse_temp.append(m)
+            fp_temp.append(f)
+        for key in mse_temp[0].keys():
+            MSEs[key] = [sum(x) / 3 for x in zip(mse_temp[0][key], mse_temp[1][key], mse_temp[2][key])]
+            FPs[key] = [sum(x) / 3 for x in zip(fp_temp[0][key], fp_temp[1][key], fp_temp[2][key])]
+        plt.xlim(right=0.05)  # to replicate the result obtained by authors
 
-    main(X, y, idx1, idx2, gamma_vals, lambda_vals, proc, args.dataset)
+    grp_sin, = plt.plot(FPs['group'], MSEs['group'], label='Group, single', color='r')
+    grp_sep, = plt.plot(FPs['groupsep'], MSEs['groupsep'], label='Group, separate', color='b')
+    hyb_sin, = plt.plot(FPs['hybrid'], MSEs['hybrid'], label='Hybrid, single', color='y')
+    hyb_sep, = plt.plot(FPs['hybridsep'], MSEs['hybridsep'], label='Hybrid, separate', color='m')
+    ind_sin, = plt.plot(FPs['individual'], MSEs['individual'], label='Individual, single', color='g')
+    ind_sep, = plt.plot(FPs['individualsep'], MSEs['individualsep'], label='Individual, separate', color='c')
+
+    plt.legend([ind_sin, grp_sin, hyb_sin, ind_sep, grp_sep, hyb_sep],
+               ['Individual, single', 'Group, single', 'Hybrid, single', 'Individual, separate', 'Group, separate',
+                'Hybrid, separate'], loc='upper right')
+    plt.xlabel('Fairness Loss')
+    plt.ylabel('MSE')
+    plt.title(args.dataset.upper())
+    # plt.show()
+    plt.savefig(os.path.join(ROOT_DIR, "output", args.dataset + ".png"))

@@ -11,6 +11,7 @@ pandas = "*"
 cvxpy = "*"
 sklearn = "*"
 matplotlib = "*"
+xlrd = "*"
 
 [requires]
 python_version = "3.6"
