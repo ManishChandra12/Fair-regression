@@ -117,3 +117,70 @@ def fairness_penalty(indices1, indices2, w1, w2, w3, w1sep1, w1sep2, w2sep1, w2s
         penal['hybridsep'] = summation
         
         return penal
+
+
+def fairness_penalty_lin(indices1, indices2, w1, w2, w1sep1, w1sep2, w2sep1, w2sep2, X, y, flg=0):
+    if not flg:
+        n1 = np.sum(indices1)
+        n2 = np.sum(indices2)
+        n = min(n1, n2)
+        i1 = np.where(indices1)[0]
+        i2 = np.where(indices2)[0]
+        # randomly sample 2n cross-pairs
+        temp = np.array(random.sample(list(itertools.product(i1, i2)), k=2 * n))
+        smp1 = temp[:, 0]
+        smp2 = temp[:, 1]
+        S1 = X[smp1]
+        y1 = y[smp1]
+        S2 = X[smp2]
+        y2 = y[smp2]
+
+        penal = {'individual': 0, 'group': 0, 'individualsep': 0, 'groupsep': 0}
+
+        # individual fairness penalty - single model
+        summation = cp.sum(cp.multiply(cp.exp(-(y1 - y2)**2), (S1 @ w1 - S2 @ w1) ** 2))
+        penal['individual'] = summation / (2 * n)
+
+        # group fairness penalty - single model
+        summation = cp.sum(cp.multiply(cp.exp(-(y1 - y2)**2), (S1 @ w2 - S2 @ w2)))
+        penal['group'] = (summation / (2 * n)) ** 2
+
+        # individual fairness penalty - separate model
+        summation = cp.sum(cp.multiply(cp.exp(-(y1 - y2)**2), (S1 @ w1sep1 - S2 @ w1sep2) ** 2))
+        penal['individualsep'] = summation / (2 * n)
+
+        # group fairness penalty - separate model
+        summation = cp.sum(cp.multiply(cp.exp(-(y1 - y2)**2), (S1 @ w2sep1 - S2 @ w2sep2)))
+        penal['groupsep'] = (summation / (2 * n)) ** 2
+
+        return penal
+    else:
+        n1 = np.sum(indices1)
+        n2 = np.sum(indices2)
+        i1 = np.where(indices1)[0]
+        i2 = np.where(indices2)[0]
+
+        # create all possible cross-pairs
+        temp = np.array(random.sample(list(itertools.product(i1, i2)), k=n1 * n2))
+        smp1 = temp[:, 0]
+        smp2 = temp[:, 1]
+        S1 = X[smp1]
+        y1 = y[smp1]
+        S2 = X[smp2]
+        y2 = y[smp2]
+        penal = {'individual': 0, 'group': 0, 'individualsep': 0, 'groupsep': 0}
+
+        summation = cp.sum(cp.multiply(cp.exp(-(y1 - y2)**2), (S1 @ w1 - S2 @ w1) ** 2))
+        penal['individual'] = summation / (n1 * n2)
+
+        summation = cp.sum(cp.multiply(cp.exp(-(y1 - y2)**2), (S1 @ w2 - S2 @ w2)))
+        penal['group'] = (summation / (n1 * n2)) ** 2
+
+        summation = cp.sum(cp.multiply(cp.exp(-(y1 - y2)**2), (S1 @ w1sep1 - S2 @ w1sep2) ** 2))
+        penal['individualsep'] = summation / (n1 * n2)
+
+        summation = cp.sum(cp.multiply(cp.exp(-(y1 - y2)**2), (S1 @ w2sep1 - S2 @ w2sep2)))
+        penal['groupsep'] = (summation / (n1 * n2)) ** 2
+
+        return penal
+
