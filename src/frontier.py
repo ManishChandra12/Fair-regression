@@ -19,18 +19,27 @@ random.seed(10)
 
 def error(y_true, X, w):
     """
-    Computes the MSE between the true and predicted class labels in single model setting
+    Computes the MSE between the true and predicted class labels for logistic regression in single model setting
     :param y_true: ground-truth labels
     :param X: features (data points)
     :param w: learned weight vector
     :return: MSE between the true and predicted class labels
     """
+
     X = X.astype(float)
     y_pred = 1 / (1.0 + np.exp(-X @ w))
     return mean_squared_error(y_true, y_pred)
 
 
 def error_lin(y_true, X, w):
+    """
+    Computes the MSE between the true and predicted class labels for linear regression in single model setting
+    :param y_true: ground-truth labels
+    :param X: features (data points)
+    :param w: learned weight vector
+    :return: MSE between the true and predicted class labels
+    """
+
     X = X.astype(float)
     y_pred = X @ w
     return mean_squared_error(y_true, y_pred)
@@ -38,7 +47,7 @@ def error_lin(y_true, X, w):
 
 def error_sep(indices1, indices2, y_true, X, w1, w2):
     """
-    Computes the MSE between the true and predicted class labels in separate model setting
+    Computes the MSE between the true and predicted class labels for logistic regression in separate model setting
     :param indices1: the indices of X that fall in protected group 1
     :param indices2: the indices of X that fall in protected group 2
     :param y_true: ground-truth labels
@@ -47,12 +56,24 @@ def error_sep(indices1, indices2, y_true, X, w1, w2):
     :param w2: learned weight vector for group 2
     :return:
     """
+
     X = X.astype(float)
     y_pred = (indices1.reshape(indices1.shape[0], 1) * (1.0 / (1 + np.exp(-X @ w1)))) + (indices2.reshape(indices2.shape[0], 1) * (1 / (1.0 + np.exp(-X @ w2))))
     return mean_squared_error(y_true, y_pred)
 
 
 def error_sep_lin(indices1, indices2, y_true, X, w1, w2):
+    """
+    Computes the MSE between the true and predicted class labels for linear regression in separate model setting
+    :param indices1: the indices of X that fall in protected group 1
+    :param indices2: the indices of X that fall in protected group 2
+    :param y_true: ground-truth labels
+    :param X: features (data points)
+    :param w1: learned weight vector for group 1
+    :param w2: learned weight vector for group 2
+    :return:
+    """
+
     X = X.astype(float)
     y_pred = (indices1.reshape(indices1.shape[0], 1) * (X @ w1)) + (indices2.reshape(indices2.shape[0], 1) * (X @ w2))
     return mean_squared_error(y_true, y_pred)
@@ -360,7 +381,6 @@ if __name__ == '__main__':
         lambda_vals = [0, 0.1, 1, 2.5, 5, 10, 50, 'inf']
         data = pd.read_csv(os.path.join(PROCESSED_DATA_DIR, 'Communities and Crime/community_processed.csv'), index_col=None)
         # indices denoting which row is from which protected group
-        # idx1 = (data['racepctblack'] > (data['racePctWhite'] + data['racePctWhite'] + data['racePctHisp'])).values
         idx1 = ((data['blackPerCap'] >= data['whitePerCap']) & (data['blackPerCap'] >= data['AsianPerCap']) & (data['blackPerCap'] >= data['indianPerCap']) & (data['blackPerCap'] >= data['HispPerCap'])).values
         idx2 = np.invert(idx1)
         data = (data - data.mean()) / data.std()

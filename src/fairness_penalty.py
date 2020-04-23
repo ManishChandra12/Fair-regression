@@ -9,7 +9,7 @@ np.random.seed(10)
 
 def fairness_penalty(indices1, indices2, w1, w2, w3, w1sep1, w1sep2, w2sep1, w2sep2, w3sep1, w3sep2, X, y, flg=0):
     """
-    Computes fairness penalties
+    Computes fairness penalties for logistic regression setting
     :param indices1: the indices of X that fall in protected group 1
     :param indices2: the indices of X that fall in protected group 2
     :param w1: regression weights for individual fairness - single model
@@ -120,6 +120,22 @@ def fairness_penalty(indices1, indices2, w1, w2, w3, w1sep1, w1sep2, w2sep1, w2s
 
 
 def fairness_penalty_lin(indices1, indices2, w1, w2, w1sep1, w1sep2, w2sep1, w2sep2, X, y, flg=0):
+    """
+        Computes fairness penalties for linear regression setting
+        :param indices1: the indices of X that fall in protected group 1
+        :param indices2: the indices of X that fall in protected group 2
+        :param w1: regression weights for individual fairness - single model
+        :param w2: regression weights for group fairness - single model
+        :param w1sep1: regression weights for individual fairness for group 1 - separate model
+        :param w1sep2: regression weights for individual fairness for group 2 - separate model
+        :param w2sep1: regression weights for group fairness for group 1 - separate model
+        :param w2sep2: regression weights for group fairness for group 2 - separate model
+        :param X: features
+        :param y: ground-truth labels
+        :param flg: if 1, calculate the actual fairness loss in the test set. Otherwise, return the cvxpy object
+        :return: fairness penalty values or corresponding cvxpy object
+        """
+
     if not flg:
         n1 = np.sum(indices1)
         n2 = np.sum(indices2)
@@ -183,4 +199,3 @@ def fairness_penalty_lin(indices1, indices2, w1, w2, w1sep1, w1sep2, w2sep1, w2s
         penal['groupsep'] = (summation / (n1 * n2)) ** 2
 
         return penal
-
