@@ -14,7 +14,7 @@ matplotlib==3.2.1 <br />
 xlrd==1.2.0 <br />
 
 # Results
-<img src="./output_paper/community.png", width=400> <img src="./output/community.png", width=400>
+![Community](https://github.com/ManishChandra12/Fair-regression/blob/master/output_paper/community.png | width=100)
 
 # NOTE
 
