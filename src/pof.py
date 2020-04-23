@@ -210,7 +210,8 @@ if __name__ == '__main__':
         _ = ax.bar(x + 3 * width, pof['individual'], width, label='Individual, single', color='g')
 
     ax.set_ylabel('Price of Fairness')
-    ax.set_title('alpha')
+    ax.set_xlabel('alpha')
+    ax.set_title(args.dataset)
     ax.set_xticks(x)
     ax.set_xticklabels(alphas)
     ax.set_ylim([0.5, 3])
