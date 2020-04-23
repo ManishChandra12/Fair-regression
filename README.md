@@ -48,18 +48,18 @@ pipenv shell
 ```
 python3 -m src.preprocess_compas
 ```
-Replace preprocess_compas with preprocess_adult or preprocess_default for Adult and Default datasets respectively.
+Replace ```preprocess_compas``` with ```preprocess_adult```, ```preprocess_default``` or ```preprocess_community``` for 'Adult', 'Default' and 'Communities and Crime' datasets respectively.
 
 ### Generating Accuracy vs Fairness
 ```
 python3 -m src.frontier --dataset=compas --proc=<number of cores to use>
 ```
-Replace compas with adult, lawschool or default for Adult, Law School and Default datasets respectively.
+Replace ```compas``` with ```adult```, ```lawschool```, ```default``` or ```community``` for 'Adult', 'Default' and 'Communities and Crime' datasets respectively.
 
 ### Generating Price of Fairness Bar Graph
 ```
 python3 -m src.pof --dataset=compas --proc=<number of cores to use>
 ```
-Replace compas with adult, lawschool or default for Adult, Law School and Default datasets respectively.
+Replace ```compas``` with ```adult```, ```lawschool```, ```default``` or ```community``` for 'Adult', 'Default' and 'Communities and Crime' datasets respectively.
 
 The final plots will be saved inside output/
