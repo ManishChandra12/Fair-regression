@@ -14,7 +14,12 @@ matplotlib==3.2.1 <br />
 xlrd==1.2.0 <br />
 
 # Results
-![Community](https://github.com/ManishChandra12/Fair-regression/blob/master/output_paper/community.png | width=100)
+Paper(Left) vs Our implementation(Right)
+
+<img src="https://github.com/ManishChandra12/Fair-regression/blob/master/output_paper/community.png" width="404" height="324"> <img src="https://github.com/ManishChandra12/Fair-regression/blob/master/output/community.png" width="454" height="350">
+<img src="https://github.com/ManishChandra12/Fair-regression/blob/master/output_paper/compas.png" width="404" height="324"> <img src="https://github.com/ManishChandra12/Fair-regression/blob/master/output/compas.png" width="454" height="350">
+<img src="https://github.com/ManishChandra12/Fair-regression/blob/master/output_paper/adult.png" width="404" height="324"> <img src="https://github.com/ManishChandra12/Fair-regression/blob/master/output/adult.png" width="454" height="350">
+<img src="https://github.com/ManishChandra12/Fair-regression/blob/master/output_paper/default.png" width="404" height="324"> <img src="https://github.com/ManishChandra12/Fair-regression/blob/master/output/default.png" width="454" height="350">
 
 # NOTE
 
