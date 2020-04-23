@@ -38,10 +38,29 @@ def logloss_sep(indices1, indices2, X, y, w1, w2):
 
 
 def meanse(X, y, w):
+    """
+    Computes the MSE for linear regression in single model setting
+    :param X: featuers
+    :param y: ground-truth labels
+    :param w: regression weight vector
+    :return: MSE for linear regression in single model setting
+    """
+
     return (1 / X.shape[0]) * cp.sum_squares(X @ w - y)
 
 
 def meanse_sep(indices1, indices2, X, y, w1, w2):
+    """
+    Computes the MSE for linear regression in separate model setting
+    :param indices1: the indices of X that fall in protected group 1
+    :param indices2: the indices of X that fall in protected group 2
+    :param X: featuers
+    :param y: ground-truth labels
+    :param w1: regression weight vector for group 1
+    :param w2: regression weight vector for group 2
+    :return: MSE for linear regression in separate model setting
+    """
+
     i1 = np.where(indices1)[0]
     i2 = np.where(indices2)[0]
     S1 = X[i1]
@@ -63,7 +82,7 @@ def l2norm(w):
 
 def get_loss(X, y, idx1, idx2, g, ll):
     """
-    Computes the total loss values for the given value of lambda
+    Computes the total loss values for the given value of lambda in logistic regression setting
     :param X: pandas dataframe containing the features
     :param y: pandas dataframe containing the ground-truth labels
     :param idx1: the indices of X that fall in protected group 1
@@ -134,9 +153,9 @@ def get_loss(X, y, idx1, idx2, g, ll):
 
 def get_loss_lin(X, y, idx1, idx2, g, ll):
     """
-    Computes the total loss values for the given value of lambda
-    :param X: pandas dataframe containing the features
-    :param y: pandas dataframe containing the ground-truth labels
+    Computes the total loss values for the given value of lambda in linear regression setting
+    :param X: features
+    :param y: ground-truth labels
     :param idx1: the indices of X that fall in protected group 1
     :param idx2: the indices of X that fall in protected group 2
     :param g: value of gamma

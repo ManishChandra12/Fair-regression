@@ -16,6 +16,19 @@ np.random.seed(10)
 
 
 def price(dataset, X, y, w, alpha, fp_wstar, fp, notion):
+    """
+    Computes the logloss/MSE loss in single model setting, when the predictor is constrained to have fairness penalty alpha
+    :param dataset: name of the dataset
+    :param X: features
+    :param y: ground-truth labels
+    :param w: regression weight vector
+    :param alpha: alpha for PoF
+    :param fp_wstar: fairness penalty of the unconstrained optimal predictor
+    :param fp: dict of fairness penalties
+    :param notion: notion of fairness
+    :return: logloss/MSE loss in single model setting, when the predictor is constrained to have fairness penalty alpha
+    """
+
     constraints = [fp[notion] <= (alpha * (fp_wstar[notion]).value)]
     if dataset == 'community':
         problem = cp.Problem(cp.Minimize(meanse(X, y, w)), constraints)
@@ -26,6 +39,22 @@ def price(dataset, X, y, w, alpha, fp_wstar, fp, notion):
 
 
 def price_sep(dataset, X, y, idx1, idx2, w1, w2, alpha, fp_wstar, fp, notion):
+    """
+    Computes the logloss/MSE loss in separate model setting, when the predictor is constrained to have fairness penalty alpha
+    :param dataset: name of the dataset
+    :param X: features
+    :param y: ground-truth labels
+    :param idx1: the indices of X that fall in protected group 1
+    :param idx2: the indices of X that fall in protected group 2
+    :param w1: regression weight vector for group 1
+    :param w2: regression weight vector for group 2
+    :param alpha: alpha for PoF
+    :param fp_wstar: fairness penalty of the unconstrained optimal predictor
+    :param fp: dict of fairness penalties
+    :param notion: notion of fairness
+    :return: logloss/MSE loss in separate model setting, when the predictor is constrained to have fairness penalty alpha
+    """
+
     constraints = [fp[notion] <= (alpha * (fp_wstar[notion]).value)]
     if dataset == 'community':
         problem = cp.Problem(cp.Minimize(meanse_sep(idx1, idx2, X, y, w1, w2)), constraints)
@@ -183,7 +212,6 @@ if __name__ == '__main__':
     elif args.dataset == 'community':
         data = pd.read_csv(os.path.join(PROCESSED_DATA_DIR, 'Communities and Crime/community_processed.csv'), index_col=None)
         # indices denoting which row is from which protected group
-        # idx1 = (data['racepctblack'] > (data['racePctWhite'] + data['racePctWhite'] + data['racePctHisp'])).values
         idx1 = ((data['blackPerCap'] >= data['whitePerCap']) & (data['blackPerCap'] >= data['AsianPerCap']) & (data['blackPerCap'] >= data['indianPerCap']) & (data['blackPerCap'] >= data['HispPerCap'])).values
         idx2 = np.invert(idx1)
         data = (data - data.mean()) / data.std()
