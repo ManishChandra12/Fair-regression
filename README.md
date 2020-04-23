@@ -21,8 +21,14 @@ Paper(Left) vs Our implementation(Right)
 <img src="https://github.com/ManishChandra12/Fair-regression/blob/master/output_paper/adult.png" width="404" height="324"> <img src="https://github.com/ManishChandra12/Fair-regression/blob/master/output/adult.png" width="454" height="350">
 <img src="https://github.com/ManishChandra12/Fair-regression/blob/master/output_paper/default.png" width="404" height="324"> <img src="https://github.com/ManishChandra12/Fair-regression/blob/master/output/default.png" width="454" height="350">
 
-# NOTE
+# Remaining
+1. The ```Law School``` dataset that we managed to have access to, is a much concise version of what the authors used. Therefore, the result we obtained for this concise version of dataset is different from the author's and hence, isn't shown in the above results.
+2. Because of the unavailability of the ```Sentencing``` dataset, experimentation with it couldn't be performed.
 
+# NOTE
+1. The paper doesn't use all the cross-pairs, but rather, random sampling is done for choosing the cross-pairs. In our experiments, we found that some datasets are quite sensitive to which random pairs are chosen and hence the slight difference in the paper's and our results.
+2. Experimenting with various values of lambdas to get smoother curves couldn't be performed because for the large datasets, the time to run the experiments on our local machines was quite large (~7-8 hours with 7 cores).
+3. For ```Communities and Crime``` dataset, the paper says that two groups are formed based on the percentage of Black people, White people, Indians, Asians and Hispanics in a community. However, per capita incomes for these groups are considered for forming groups.
 
 ## Team Members
 1. Sharik A (19CS60D04)
