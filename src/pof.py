@@ -7,37 +7,53 @@ import matplotlib.pyplot as plt
 from multiprocessing import Pool
 import itertools
 import random
-from src.loss import logloss, logloss_sep
-from src.fairness_penalty import fairness_penalty
+from src.loss import logloss, logloss_sep, meanse, meanse_sep
+from src.fairness_penalty import fairness_penalty, fairness_penalty_lin
 from CONSTANTS import PROCESSED_DATA_DIR, RAW_DATA_DIR, ROOT_DIR
 
 random.seed(10)
 np.random.seed(10)
 
 
-def price(X, y, w, alpha, fp_wstar, fp, notion):
+def price(dataset, X, y, w, alpha, fp_wstar, fp, notion):
     constraints = [fp[notion] <= (alpha * (fp_wstar[notion]).value)]
-    problem = cp.Problem(cp.Minimize(logloss(X, y, w)), constraints)
+    if dataset == 'community':
+        problem = cp.Problem(cp.Minimize(meanse(X, y, w)), constraints)
+    else:
+        problem = cp.Problem(cp.Minimize(logloss(X, y, w)), constraints)
     problem.solve(max_iters=500)
     return problem.value
 
 
-def price_sep(X, y, idx1, idx2, w1, w2, alpha, fp_wstar, fp, notion):
+def price_sep(dataset, X, y, idx1, idx2, w1, w2, alpha, fp_wstar, fp, notion):
     constraints = [fp[notion] <= (alpha * (fp_wstar[notion]).value)]
-    problem = cp.Problem(cp.Minimize(logloss_sep(idx1, idx2, X, y, w1, w2)), constraints)
+    if dataset == 'community':
+        problem = cp.Problem(cp.Minimize(meanse_sep(idx1, idx2, X, y, w1, w2)), constraints)
+    else:
+        problem = cp.Problem(cp.Minimize(logloss_sep(idx1, idx2, X, y, w1, w2)), constraints)
     problem.solve(max_iters=800)
     return problem.value
 
 
 def main(X, y, idx1, idx2, dataset, alphas):
+    # stack a column of 1s
+    X = np.c_[np.ones(len(X)), X]
+
     w = cp.Variable((X.shape[1], 1))
-    problem = cp.Problem(cp.Minimize(logloss(X, y, w)))
-    problem.solve(max_iters=500)
+    if dataset == 'community':
+        problem = cp.Problem(cp.Minimize(meanse(X, y, w)))
+        problem.solve()
+    else:
+        problem = cp.Problem(cp.Minimize(logloss(X, y, w)))
+        problem.solve(max_iters=500)
 
     lp_wstar = problem.value
-    fp_wstar = fairness_penalty(idx1, idx2, w, w, w, w, w, w, w, w, w, X, y, 0)
-
-    pof = {'individual': [], 'group': [], 'hybrid': [], 'individualsep': [], 'groupsep': [], 'hybridsep': []}
+    if dataset == 'community':
+        fp_wstar = fairness_penalty_lin(idx1, idx2, w, w, w, w, w, w, X, y, 0)
+        pof = {'individual': [], 'group': [], 'individualsep': [], 'groupsep': []}
+    else:
+        fp_wstar = fairness_penalty(idx1, idx2, w, w, w, w, w, w, w, w, w, X, y, 0)
+        pof = {'individual': [], 'group': [], 'hybrid': [], 'individualsep': [], 'groupsep': [], 'hybridsep': []}
 
     w1 = cp.Variable((X.shape[1], 1))
     w2 = cp.Variable((X.shape[1], 1))
@@ -49,49 +65,54 @@ def main(X, y, idx1, idx2, dataset, alphas):
     w3sep1 = cp.Variable((X.shape[1], 1))
     w3sep2 = cp.Variable((X.shape[1], 1))
     random.seed(10)
-    fp = fairness_penalty(idx1, idx2, w1, w2, w3, w1sep1, w1sep2, w2sep1, w2sep2, w3sep1, w3sep2, X, y, 0)
+    if dataset == 'community':
+        fp = fairness_penalty_lin(idx1, idx2, w1, w2, w1sep1, w1sep2, w2sep1, w2sep2, X, y, 0)
+    else:
+        fp = fairness_penalty(idx1, idx2, w1, w2, w3, w1sep1, w1sep2, w2sep1, w2sep2, w3sep1, w3sep2, X, y, 0)
 
     pool = Pool(processes=proc)
     print("Processing individual-single")
-    pof_values = pool.starmap(price, (itertools.product([X], [y], [w1], alphas, [fp_wstar], [fp], ['individual'])))
+    pof_values = pool.starmap(price, (itertools.product([dataset], [X], [y], [w1], alphas, [fp_wstar], [fp], ['individual'])))
     pool.close()
     pool.join()
     pof['individual'] = [x / lp_wstar for x in pof_values]
 
     pool = Pool(processes=proc)
     print("Processing group-single")
-    pof_values = pool.starmap(price, (itertools.product([X], [y], [w2], alphas, [fp_wstar], [fp], ['group'])))
+    pof_values = pool.starmap(price, (itertools.product([dataset], [X], [y], [w2], alphas, [fp_wstar], [fp], ['group'])))
     pool.close()
     pool.join()
     pof['group'] = [x / lp_wstar for x in pof_values]
 
-    pool = Pool(processes=proc)
-    print("Processing hybrid-single")
-    pof_values = pool.starmap(price, (itertools.product([X], [y], [w3], alphas, [fp_wstar], [fp], ['hybrid'])))
-    pool.close()
-    pool.join()
-    pof['hybrid'] = [x / lp_wstar for x in pof_values]
+    if dataset != 'community':
+        pool = Pool(processes=proc)
+        print("Processing hybrid-single")
+        pof_values = pool.starmap(price, (itertools.product([dataset], [X], [y], [w3], alphas, [fp_wstar], [fp], ['hybrid'])))
+        pool.close()
+        pool.join()
+        pof['hybrid'] = [x / lp_wstar for x in pof_values]
 
     pool = Pool(processes=proc)
     print("Processing individual-separate")
-    pof_values = pool.starmap(price_sep, (itertools.product([X], [y], [idx1], [idx2], [w1sep1], [w1sep2], alphas, [fp_wstar], [fp], ['individualsep'])))
+    pof_values = pool.starmap(price_sep, (itertools.product([dataset], [X], [y], [idx1], [idx2], [w1sep1], [w1sep2], alphas, [fp_wstar], [fp], ['individualsep'])))
     pool.close()
     pool.join()
     pof['individualsep'] = [x / lp_wstar for x in pof_values]
 
     pool = Pool(processes=proc)
     print("Processing group-separate")
-    pof_values = pool.starmap(price_sep, (itertools.product([X], [y], [idx1], [idx2], [w2sep1], [w2sep2], alphas, [fp_wstar], [fp], ['groupsep'])))
+    pof_values = pool.starmap(price_sep, (itertools.product([dataset], [X], [y], [idx1], [idx2], [w2sep1], [w2sep2], alphas, [fp_wstar], [fp], ['groupsep'])))
     pool.close()
     pool.join()
     pof['groupsep'] = [x / lp_wstar for x in pof_values]
 
-    pool = Pool(processes=proc)
-    print("Processing hybrid-separate")
-    pof_values = pool.starmap(price_sep, (itertools.product([X], [y], [idx1], [idx2], [w3sep1], [w3sep2], alphas, [fp_wstar], [fp], ['hybridsep'])))
-    pool.close()
-    pool.join()
-    pof['hybridsep'] = [x / lp_wstar for x in pof_values]
+    if dataset != 'community':
+        pool = Pool(processes=proc)
+        print("Processing hybrid-separate")
+        pof_values = pool.starmap(price_sep, (itertools.product([dataset], [X], [y], [idx1], [idx2], [w3sep1], [w3sep2], alphas, [fp_wstar], [fp], ['hybridsep'])))
+        pool.close()
+        pool.join()
+        pof['hybridsep'] = [x / lp_wstar for x in pof_values]
 
     print(pof)
 
@@ -100,7 +121,7 @@ def main(X, y, idx1, idx2, dataset, alphas):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", type=str, choices=['compas', 'adult', 'communities', 'default', 'lawschool'], required=True, help="dataset to use")
+    parser.add_argument("--dataset", type=str, choices=['compas', 'adult', 'community', 'default', 'lawschool'], required=True, help="dataset to use")
     parser.add_argument("--proc", type=int, choices=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], default=7,
                         help="number of processes to run in parallel (between 1 and 16)")
     args = parser.parse_args()
@@ -159,17 +180,34 @@ if __name__ == '__main__':
             pof_temp.append(main(X, y, idx1, idx2, args.dataset, alphas))
         for key in pof_temp[0].keys():
             pof[key] = [sum(x) / 3 for x in zip(pof_temp[0][key], pof_temp[1][key], pof_temp[2][key])]
+    elif args.dataset == 'community':
+        data = pd.read_csv(os.path.join(PROCESSED_DATA_DIR, 'Communities and Crime/community_processed.csv'), index_col=None)
+        # indices denoting which row is from which protected group
+        # idx1 = (data['racepctblack'] > (data['racePctWhite'] + data['racePctWhite'] + data['racePctHisp'])).values
+        idx1 = ((data['blackPerCap'] >= data['whitePerCap']) & (data['blackPerCap'] >= data['AsianPerCap']) & (data['blackPerCap'] >= data['indianPerCap']) & (data['blackPerCap'] >= data['HispPerCap'])).values
+        idx2 = np.invert(idx1)
+        data = (data - data.mean()) / data.std()
+        y = data[['ViolentCrimesPerPop']].values
+        X = data.drop(['ViolentCrimesPerPop'], axis=1).values
+
+        pof = main(X, y, idx1, idx2, args.dataset, alphas)
 
     x = np.arange(len(alphas))  # the label locations
     width = 0.1  # the width of the bars
     fig, ax = plt.subplots()
 
-    _ = ax.bar(x - 2 * width, pof['groupsep'], width, label='Group, separate', color='b')
-    _ = ax.bar(x - width, pof['group'], width, label='Group, single', color='r')
-    _ = ax.bar(x, pof['hybridsep'], width, label='Hybrid, separate', color='m')
-    _ = ax.bar(x + width, pof['hybrid'], width, label='Hybrid, single', color='y')
-    _ = ax.bar(x + 2 * width, pof['individualsep'], width, label='Individual, separate', color='c')
-    _ = ax.bar(x + 3 * width, pof['individual'], width, label='Individual, single', color='g')
+    if args.dataset == 'community':
+        _ = ax.bar(x - 2 * width, pof['groupsep'], width, label='Group, separate', color='b')
+        _ = ax.bar(x - width, pof['group'], width, label='Group, single', color='r')
+        _ = ax.bar(x, pof['individualsep'], width, label='Individual, separate', color='c')
+        _ = ax.bar(x + width, pof['individual'], width, label='Individual, single', color='g')
+    else:
+        _ = ax.bar(x - 2 * width, pof['groupsep'], width, label='Group, separate', color='b')
+        _ = ax.bar(x - width, pof['group'], width, label='Group, single', color='r')
+        _ = ax.bar(x, pof['hybridsep'], width, label='Hybrid, separate', color='m')
+        _ = ax.bar(x + width, pof['hybrid'], width, label='Hybrid, single', color='y')
+        _ = ax.bar(x + 2 * width, pof['individualsep'], width, label='Individual, separate', color='c')
+        _ = ax.bar(x + 3 * width, pof['individual'], width, label='Individual, single', color='g')
 
     ax.set_ylabel('Price of Fairness')
     ax.set_title('alpha')
