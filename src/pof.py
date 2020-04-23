@@ -25,7 +25,7 @@ def price(X, y, w, alpha, fp_wstar, fp, notion):
 def price_sep(X, y, idx1, idx2, w1, w2, alpha, fp_wstar, fp, notion):
     constraints = [fp[notion] <= (alpha * (fp_wstar[notion]).value)]
     problem = cp.Problem(cp.Minimize(logloss_sep(idx1, idx2, X, y, w1, w2)), constraints)
-    problem.solve(max_iters=500)
+    problem.solve(max_iters=800)
     return problem.value
 
 
